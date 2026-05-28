@@ -1,3 +1,42 @@
+# Конфигурация сервера
+server:
+  port: 8080                          # Порт для HTTP сервера
+  servlet:
+    context-path: /                   # Контекстный путь (root)
+
+# Конфигурация Spring приложения
 spring:
   application:
-    name: yandex-lavka
+    name: yandex-lavka               # Имя приложения для логов и мониторинга
+
+  # Конфигурация JSON сериализации
+  jackson:
+    property-naming-strategy: SNAKE_CASE     # camelCase -> snake_case
+    default-property-inclusion: NON_NULL     # Не включать null поля
+    serialization:
+      write-dates-as-timestamps: false      # ISO-8601 формат дат
+    deserialization:
+      fail-on-unknown-properties: false     # Игнорировать неизвестные поля
+
+  # Конфигурация веб слоя
+  mvc:
+    throw-exception-if-no-handler-found: true  # 404 для несуществующих endpoints
+
+# Конфигурация логирования
+logging:
+  level:
+    root: INFO                        # Общий уровень логирования
+    com.yandex.lavka: DEBUG          # DEBUG для нашего пакета
+    org.springframework.web: DEBUG   # DEBUG для Spring Web (полезно для отладки)
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"  # Формат вывода в консоль
+
+# Конфигурация управления приложением (Actuator)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info          # Открыть endpoints для проверки здоровья
+  endpoint:
+    health:
+      show-details: always           # Показывать детали здоровья приложения
