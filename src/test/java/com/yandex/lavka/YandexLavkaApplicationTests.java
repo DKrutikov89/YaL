@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Базовый тест для проверки, что Spring контекст запускается
  */
-@SpringBootTest
+@SpringBootTest //
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class YandexLavkaApplicationTests {
@@ -88,4 +88,116 @@ class YandexLavkaApplicationTests {
 				.andExpect(jsonPath("$.error").value("Not Found"))
 				.andExpect(jsonPath("$.message").value("Courier not found with id: 999"));
 	}
+	@Test
+	void createCourierWithValidWorkingHours_ShouldSucceed() throws Exception {
+		String requestBody = """
+                {
+                  "couriers": [
+                    {
+                      "courier_type": "AUTO",
+                      "regions": [1, 2],
+                      "working_hours": ["09:00-18:00"]
+                    }
+                  ]
+                }
+                """;
+
+		mockMvc.perform(post("/couriers")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.couriers[0].courier_id").value(1));
+	}
+
+	@Test
+	void createCourierWithInvalidWorkingHours_StartAfterEnd_ShouldFail() throws Exception {
+		String requestBody = """
+                {
+                  "couriers": [
+                    {
+                      "courier_type": "AUTO",
+                      "regions": [1, 2],
+                      "working_hours": ["18:00-09:00"]
+                    }
+                  ]
+                }
+                """;
+
+		mockMvc.perform(post("/couriers")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Validation Failed"));
+	}
+
+	@Test
+	void createCourierWithInvalidWorkingHours_StartEqualsEnd_ShouldFail() throws Exception {
+		String requestBody = """
+                {
+                  "couriers": [
+                    {
+                      "courier_type": "AUTO",
+                      "regions": [1, 2],
+                      "working_hours": ["09:00-09:00"]
+                    }
+                  ]
+                }
+                """;
+
+		mockMvc.perform(post("/couriers")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Validation Failed"));
+	}
+
+	@Test
+	void createCourierWithMultipleWorkingHours_OneInvalid_ShouldFail() throws Exception {
+		String requestBody = """
+                {
+                  "couriers": [
+                    {
+                      "courier_type": "AUTO",
+                      "regions": [1, 2],
+                      "working_hours": [
+                        "09:00-12:00",
+                        "13:00-18:00",
+                        "20:00-19:00"
+                      ]
+                    }
+                  ]
+                }
+                """;
+
+		mockMvc.perform(post("/couriers")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Validation Failed"));
+	}
+
+	@Test
+	void createCourierWithValidMultipleWorkingHours_ShouldSucceed() throws Exception {
+		String requestBody = """
+                {
+                  "couriers": [
+                    {
+                      "courier_type": "BIKE",
+                      "regions": [5],
+                      "working_hours": [
+                        "09:00-12:00",
+                        "13:00-18:00"
+                      ]
+                    }
+                  ]
+                }
+                """;
+
+		mockMvc.perform(post("/couriers")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.couriers[0].courier_id").value(1));
+	}
 }
+

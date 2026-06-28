@@ -34,6 +34,7 @@ public class GlobalExceptionHandler {
 
         errors.put("error", "Validation Failed");
         errors.put("details", fieldErrors);
+        errors.put("timestamp", System.currentTimeMillis()); // Добавляем время
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
 
