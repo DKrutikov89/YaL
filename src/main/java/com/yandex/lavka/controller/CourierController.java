@@ -6,6 +6,8 @@ import com.yandex.lavka.model.dto.CreateCourierRequest;
 import com.yandex.lavka.model.dto.CreateCouriersResponse;
 import com.yandex.lavka.service.CourierService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,11 +18,13 @@ import java.util.List;
 // ← Все методы этого контроллера начинаются с /couriers
 public class CourierController {
 
-
+    // 🔥 ЛОГГЕР - добавляем!
+    private static final Logger logger = LoggerFactory.getLogger(CourierController.class);
     private final CourierService courierService; // Сильная зависимость.
 
     public CourierController(CourierService courierService) {
         this.courierService = courierService;
+        logger.info("CourierController инициализирован");
     }
     // - Spring видит, что контроллеру нужен `CourierService`;
     //- находит бин `CourierService`;
@@ -31,14 +35,20 @@ public class CourierController {
      */
     @PostMapping  // ← Этот метод отвечает на POST-запрос /couriers
     //- `ResponseEntity<CreateCouriersResponse>` — вернётся HTTP-ответ с телом типа `CreateCouriersResponse`;
-    public ResponseEntity<CreateCouriersResponse> createCouriers(@Valid @RequestBody CreateCourierRequest request)
+    public ResponseEntity<CreateCouriersResponse> createCouriers(
+            @Valid @RequestBody CreateCourierRequest request)
     {
+        logger.info("📨 Получен POST-запрос на создание курьеров");
+        logger.debug("📦 Данные запроса: {}", request);
+
+        long startTime = System.currentTimeMillis();
+
         // courierService - Объект сервиса, который содержит бизнес-логику.  Это как "менеджер по работе с курьерами"
         // Он умеет создавать, искать, удалять курьеров. Spring сам создал этот объект и передал его в контроллер
         // Он знает всех курьеров и умеет с ними работать
 
         //  .createCouriers() Что это: Вызов метода (создать курьеров)
-        //  Он принимает на вход список данных для создания
+        //  Он принимает на вход список данных для создания.
         // Возвращает список уже созданных курьеров с ID у объекта courierService.
         // // Сервис получает список CreateCourierDto без ID
         // 5: Сервис создает курьеров с ID и возвращает их
@@ -50,7 +60,8 @@ public class CourierController {
         //Что это: Получение данных из объекта запроса.
         CreateCouriersResponse response = new CreateCouriersResponse(createdCouriers);
 
-
+        long duration = System.currentTimeMillis() - startTime;
+        logger.info("✅ Курьеры созданы. Количество: {}, Время: {}ms", createdCouriers.size(), duration);
 
         //- `@Valid` — перед вызовом метода проверить объект по правилам валидации.
         //- `@RequestBody` — взять JSON из тела запроса и превратить в Java-объект;
@@ -77,7 +88,15 @@ public class CourierController {
      */
     @GetMapping
     public ResponseEntity<List<CourierDto>> getAllCouriers() {
+        logger.info("Получен GET-запрос на получение всех курьеров");
+
+        long startTime = System.currentTimeMillis();
+
         List<CourierDto> couriers = courierService.getAllCouriers();
+
+        long duration = System.currentTimeMillis() - startTime;
+        logger.info("📋 Все курьеры получены. Количество: {}, Время: {}ms", couriers.size(), duration);
+
         return ResponseEntity.ok(couriers);
         // - получает из сервиса всех курьеров;
         //- возвращает их клиенту.
@@ -88,8 +107,19 @@ public class CourierController {
      */
     @GetMapping("/{courier_id}") // Это число поместится в аргументы этого метода, @PathVariable с помощью извлечем и получим доступ внутри метода.
     public ResponseEntity<CourierDto> getCourierById(@PathVariable("courier_id") Long courierId) {
+
+        logger.info("Получен GET-запрос на получение курьера по ID: {}", courierId);
+
+        long startTime = System.currentTimeMillis();
         CourierDto courier = courierService.getCourierById(courierId)
                 .orElseThrow(() -> new CourierNotFoundException(courierId));
+
+        long duration = System.currentTimeMillis() - startTime;
+        logger.info("✅ Курьер найден: id={}, type={}, Время: {}ms",
+                courier.getCourierId(),
+                courier.getCourierType(),
+                duration
+        );
 
         return ResponseEntity.ok(courier);
     }

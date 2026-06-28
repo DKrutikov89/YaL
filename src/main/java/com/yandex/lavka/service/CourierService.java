@@ -2,6 +2,8 @@ package com.yandex.lavka.service;
 
 import com.yandex.lavka.model.dto.CourierDto;
 import com.yandex.lavka.model.dto.CreateCourierDto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -10,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+
 
 // Что происходит:
 //Сервис берёт каждого курьера из запроса.
@@ -33,6 +36,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Service // ← Помечаем как сервисный компонент
 public class CourierService {
+    //  ЛОГГЕР - добавляем!
+    private static final Logger logger = LoggerFactory.getLogger(CourierService.class);
 
     // In-memory хранилище курьеров (временно, до подключения БД)
     private final ConcurrentHashMap<Long, CourierDto> couriers = new ConcurrentHashMap<>();
@@ -51,8 +56,15 @@ public class CourierService {
             couriers.put(courierDto.getCourierId(), courierDto);
             // 3. Добавляем в список ответа
             createdCouriers.add(courierDto);
+            logger.debug("✅ Создан курьер: id={}, type={}, regions={}, hours={}",
+                    courierDto.getCourierId(),
+                    courierDto.getCourierType(),
+                    courierDto.getRegions(),
+                    courierDto.getWorkingHours()
+            );
         }
 
+        logger.info("✅ Создание курьеров завершено. Создано: {}", createdCouriers.size());
         return createdCouriers;
 
         // `couriers`
@@ -104,9 +116,13 @@ public class CourierService {
      * Получение всех курьеров
      */
     public List<CourierDto> getAllCouriers() {
-        return couriers.values().stream()
+        logger.debug("📋 Запрос всех курьеров. Всего в базе: {}", couriers.size());
+        List<CourierDto> result = couriers.values().stream()
                 .sorted(Comparator.comparing(CourierDto::getCourierId))
                 .toList();
+
+        logger.debug("📋 Возвращено курьеров: {}", result.size());
+        return result;
         //Разбор:
 //
 //- `couriers.values()` — взять все объекты из карты;
@@ -128,7 +144,21 @@ public class CourierService {
      * Получение курьера по ID
      */
     public Optional<CourierDto> getCourierById(Long courierId) {
-        return Optional.ofNullable(couriers.get(courierId));
+        logger.debug("🔍 Поиск курьера по ID: {}", courierId);
+
+        Optional<CourierDto> result = Optional.ofNullable(couriers.get(courierId));
+
+        if (result.isPresent()) {
+            logger.debug("✅ Курьер найден: id={}, type={}",
+                    result.get().getCourierId(),
+                    result.get().getCourierType()
+            );
+        } else {
+            logger.warn("⚠️ Курьер не найден: id={}", courierId);
+        }
+
+        return result;
+    }
 
         //### Метод `getCourierById`
 //Что происходит:
@@ -137,13 +167,14 @@ public class CourierService {
 //- `Optional.ofNullable(...)` аккуратно заворачивает результат в `Optional`.
 
 
-    }
-
     /**
      * Проверка существования курьера
      */
     public boolean existsById(Long courierId) {
-        return couriers.containsKey(courierId);
+        boolean exists = couriers.containsKey(courierId);
+        logger.debug("🔍 Проверка существования курьера id={}: {}", courierId, exists);
+        return exists;
+
         //### Метод `existsById`
 //Проверяет, есть ли курьер.
 //Сейчас этот метод не используется.
@@ -159,9 +190,11 @@ public class CourierService {
      * Конвертация CreateCourierDto в CourierDto
      */
     private CourierDto convertToDto(CreateCourierDto createDto) {
-        Long newId = idGenerator.getAndIncrement();  // Генерируем новый ID: 1, 2, 3, ...
-        return new CourierDto(  // Создаём полноценного курьера с ID
-                newId, // ← Вот тут появляется ID!
+        Long newId = idGenerator.getAndIncrement();
+        logger.debug("🔄 Конвертация: CreateCourierDto → CourierDto с id={}", newId);
+
+        return new CourierDto(
+                newId,
                 createDto.getCourierType(),
                 new ArrayList<>(createDto.getRegions()),
                 new ArrayList<>(createDto.getWorkingHours())
