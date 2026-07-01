@@ -38,8 +38,8 @@ public class CourierController {
     public ResponseEntity<CreateCouriersResponse> createCouriers(
             @Valid @RequestBody CreateCourierRequest request)
     {
-        logger.info("📨 Получен POST-запрос на создание курьеров");
-        logger.debug("📦 Данные запроса: {}", request);
+        logger.info("Получен POST-запрос на создание курьеров");
+        logger.debug("Данные запроса: {}", request);
 
         long startTime = System.currentTimeMillis();
 
@@ -61,7 +61,7 @@ public class CourierController {
         CreateCouriersResponse response = new CreateCouriersResponse(createdCouriers);
 
         long duration = System.currentTimeMillis() - startTime;
-        logger.info("✅ Курьеры созданы. Количество: {}, Время: {}ms", createdCouriers.size(), duration);
+        logger.info("Курьеры созданы. Количество: {}, Время: {}ms", createdCouriers.size(), duration);
 
         //- `@Valid` — перед вызовом метода проверить объект по правилам валидации.
         //- `@RequestBody` — взять JSON из тела запроса и превратить в Java-объект;
@@ -95,7 +95,7 @@ public class CourierController {
         List<CourierDto> couriers = courierService.getAllCouriers();
 
         long duration = System.currentTimeMillis() - startTime;
-        logger.info("📋 Все курьеры получены. Количество: {}, Время: {}ms", couriers.size(), duration);
+        logger.info("Все курьеры получены. Количество: {}, Время: {}ms", couriers.size(), duration);
 
         return ResponseEntity.ok(couriers);
         // - получает из сервиса всех курьеров;
@@ -115,7 +115,7 @@ public class CourierController {
                 .orElseThrow(() -> new CourierNotFoundException(courierId));
 
         long duration = System.currentTimeMillis() - startTime;
-        logger.info("✅ Курьер найден: id={}, type={}, Время: {}ms",
+        logger.info("Курьер найден: id={}, type={}, Время: {}ms",
                 courier.getCourierId(),
                 courier.getCourierType(),
                 duration

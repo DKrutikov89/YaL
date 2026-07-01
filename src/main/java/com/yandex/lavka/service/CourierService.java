@@ -56,7 +56,7 @@ public class CourierService {
             couriers.put(courierDto.getCourierId(), courierDto);
             // 3. Добавляем в список ответа
             createdCouriers.add(courierDto);
-            logger.debug("✅ Создан курьер: id={}, type={}, regions={}, hours={}",
+            logger.debug("Создан курьер: id={}, type={}, regions={}, hours={}",
                     courierDto.getCourierId(),
                     courierDto.getCourierType(),
                     courierDto.getRegions(),
@@ -64,7 +64,7 @@ public class CourierService {
             );
         }
 
-        logger.info("✅ Создание курьеров завершено. Создано: {}", createdCouriers.size());
+        logger.info("Создание курьеров завершено. Создано: {}", createdCouriers.size());
         return createdCouriers;
 
         // `couriers`
@@ -116,12 +116,12 @@ public class CourierService {
      * Получение всех курьеров
      */
     public List<CourierDto> getAllCouriers() {
-        logger.debug("📋 Запрос всех курьеров. Всего в базе: {}", couriers.size());
+        logger.debug("Запрос всех курьеров. Всего в базе: {}", couriers.size());
         List<CourierDto> result = couriers.values().stream()
                 .sorted(Comparator.comparing(CourierDto::getCourierId))
                 .toList();
 
-        logger.debug("📋 Возвращено курьеров: {}", result.size());
+        logger.debug("Возвращено курьеров: {}", result.size());
         return result;
         //Разбор:
 //
@@ -144,17 +144,17 @@ public class CourierService {
      * Получение курьера по ID
      */
     public Optional<CourierDto> getCourierById(Long courierId) {
-        logger.debug("🔍 Поиск курьера по ID: {}", courierId);
+        logger.debug("Поиск курьера по ID: {}", courierId);
 
         Optional<CourierDto> result = Optional.ofNullable(couriers.get(courierId));
 
         if (result.isPresent()) {
-            logger.debug("✅ Курьер найден: id={}, type={}",
+            logger.debug("Курьер найден: id={}, type={}",
                     result.get().getCourierId(),
                     result.get().getCourierType()
             );
         } else {
-            logger.warn("⚠️ Курьер не найден: id={}", courierId);
+            logger.warn("Курьер не найден: id={}", courierId);
         }
 
         return result;
@@ -172,7 +172,7 @@ public class CourierService {
      */
     public boolean existsById(Long courierId) {
         boolean exists = couriers.containsKey(courierId);
-        logger.debug("🔍 Проверка существования курьера id={}: {}", courierId, exists);
+        logger.debug("Проверка существования курьера id={}: {}", courierId, exists);
         return exists;
 
         //### Метод `existsById`
@@ -191,7 +191,7 @@ public class CourierService {
      */
     private CourierDto convertToDto(CreateCourierDto createDto) {
         Long newId = idGenerator.getAndIncrement();
-        logger.debug("🔄 Конвертация: CreateCourierDto → CourierDto с id={}", newId);
+        logger.debug("Конвертация: CreateCourierDto → CourierDto с id={}", newId);
 
         return new CourierDto(
                 newId,

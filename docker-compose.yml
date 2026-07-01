@@ -1,0 +1,31 @@
+version: '3.8'  # Версия Docker Compose
+
+services: # Список сервисов
+  # ============================================
+  # PostgreSQL 15.2
+  # ============================================
+  postgres:   # Название сервиса
+    image: postgres:15.2-alpine           # Образ PostgreSQL 15.2
+    container_name: lavka-postgres        # Имя контейнера
+    environment: # Переменные окружения
+      POSTGRES_DB: yandex_lavka           # Название базы данных
+      POSTGRES_USER: postgres             # Имя пользователя
+      POSTGRES_PASSWORD: password         # Пароль
+      POSTGRES_INITDB_ARGS: "-E UTF8"     # Кодировка UTF-8
+      TZ: Europe/Moscow                   # Часовой пояс
+    ports:  # Проброс портов
+      - "5432:5432"                       # Проброс порта (хост:контейнер)
+    volumes: # Тома для данных
+      - postgres_data:/var/lib/postgresql/data  # Сохранение данных
+      - ./docker/init-scripts:/docker-entrypoint-initdb.d  # Скрипты инициализации
+    healthcheck: # Проверка готовности БД
+      test: ["CMD-SHELL", "pg_isready -U postgres -d yandex_lavka"]  # Команда проверки
+      interval: 10s      # Проверка каждые 10 секунд
+      timeout: 5s        # Тайм-аут 5 секунд
+      retries: 5         # 5 попыток перед пометкой unhealthy
+      start_period: 10s  # Начать проверку через 10 секунд после запуска
+    restart: unless-stopped               # Автоматический перезапуск
+
+# Объем для хранения данных PostgreSQL
+volumes:
+  postgres_data:  # Том для хранения данных
