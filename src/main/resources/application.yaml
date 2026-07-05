@@ -22,12 +22,57 @@ spring:
   mvc:
     throw-exception-if-no-handler-found: true  # 404 для несуществующих endpoints
 
+  # Конфигурация подключения к БД
+  datasource:
+    url: jdbc:postgresql://localhost:5432/yandex_lavka
+    username: postgres
+    password: password
+    driver-class-name: org.postgresql.Driver
+
+    # Настройки HikariCP (connection pool)
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      pool-name: LavkaHikariPool
+      auto-commit: true
+
+  # Конфигурация JPA / Hibernate
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        default_schema: lavka_schema
+    open-in-view: false
+
+  # Конфигурация Liquibase (миграции)
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    drop-first: false
+    default-schema: lavka_schema
+
 # Конфигурация логирования
 logging:
   level:
     root: INFO                        # Общий уровень логирования
     com.yandex.lavka: DEBUG          # DEBUG для нашего пакета
     org.springframework.web: DEBUG   # DEBUG для Spring Web (полезно для отладки)
+    org.hibernate.SQL: DEBUG         # SQL запросы Hibernate
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE  # Параметры SQL
+    org.springframework.jdbc.core: DEBUG  # JDBC логи
+    liquibase: INFO                  # Логи миграций
+    com.zaxxer.hikari: DEBUG         # Логи HikariCP
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"  # Формат вывода в консоль
 
