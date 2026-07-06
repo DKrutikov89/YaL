@@ -2,250 +2,267 @@ package com.yandex.lavka.service;
 
 import com.yandex.lavka.model.dto.CourierDto;
 import com.yandex.lavka.model.dto.CreateCourierDto;
+import com.yandex.lavka.model.entity.Courier;
+import com.yandex.lavka.model.enums.CourierType;
+import com.yandex.lavka.repository.CourierRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
-
-// Что происходит:
-//Сервис берёт каждого курьера из запроса.
-//Генерирует для него уникальный ID (1, 2, 3...)
-//Сохраняет в HashMap (как в виртуальной базе данных)
-//Возвращает список созданных курьеров с их новыми ID
-
-// Сервис — это место, где живёт логика приложения.
-//В этом проекте он:
-//- создаёт курьеров;
-//- хранит их в памяти;
-//- отдаёт список;
-//- ищет по `id`;
-//- генерирует новые `id`.
-
-// @Service`
-// Говорит Spring:
-//- это сервисный компонент;
-//- нужно создать его объект как Spring-бин;
-//- его можно внедрять в другие классы.
-
-@Service // ← Помечаем как сервисный компонент
+/**
+ * Сервис для работы с курьерами.
+ * Использует CourierRepository для доступа к базе данных.
+ */
+@Service
 public class CourierService {
-    //  ЛОГГЕР - добавляем!
+
     private static final Logger logger = LoggerFactory.getLogger(CourierService.class);
 
-    // In-memory хранилище курьеров (временно, до подключения БД)
-    private final ConcurrentHashMap<Long, CourierDto> couriers = new ConcurrentHashMap<>();
-    private final AtomicLong idGenerator = new AtomicLong(1); // Генератор ID
+    // ============================================
+    // Внедрение репозитория через конструктор
+    // ============================================
+    private final CourierRepository courierRepository;
+
+    public CourierService(CourierRepository courierRepository) {
+        this.courierRepository = courierRepository;
+        logger.info("🚀 CourierService инициализирован с Repository");
+    }
+
+    // ============================================
+    // 1. Базовые CRUD операции
+    // ============================================
 
     /**
-     * Создание списка курьеров
+     * Создание списка курьеров.
+     * Сохраняет всех курьеров в базу данных.
      */
+    @Transactional
     public List<CourierDto> createCouriers(List<CreateCourierDto> createCourierDtos) {
-        List<CourierDto> createdCouriers = new ArrayList<>();
+        logger.info("📥 Начало создания курьеров. Количество: {}", createCourierDtos.size());
 
-        for (CreateCourierDto createDto : createCourierDtos) {
-            // 1. Превращаем CreateCourierDto в CourierDto (с ID)
-            CourierDto courierDto = convertToDto(createDto);
-            // 2. Сохраняем в хранилище
-            couriers.put(courierDto.getCourierId(), courierDto);
-            // 3. Добавляем в список ответа
-            createdCouriers.add(courierDto);
-            logger.debug("Создан курьер: id={}, type={}, regions={}, hours={}",
-                    courierDto.getCourierId(),
-                    courierDto.getCourierType(),
-                    courierDto.getRegions(),
-                    courierDto.getWorkingHours()
-            );
-        }
+        // Конвертируем DTO → Entity
+        List<Courier> couriers = createCourierDtos.stream()
+                .map(this::convertToEntity)
+                .collect(Collectors.toList());
 
-        logger.info("Создание курьеров завершено. Создано: {}", createdCouriers.size());
-        return createdCouriers;
+        // Сохраняем в БД
+        List<Courier> savedCouriers = courierRepository.saveAll(couriers);
 
-        // `couriers`
-//Это хранилище в памяти.
-//Ключ: `Long` — `id` курьера.
-//Значение: `CourierDto` — сам курьер.
-//Почему `ConcurrentHashMap`, а не обычный `HashMap`:
-//- веб-приложение может обрабатывать несколько запросов одновременно;
-//- `ConcurrentHashMap` безопаснее для многопоточной среды.
+        // Конвертируем Entity → DTO
+        List<CourierDto> result = savedCouriers.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
 
-        // `idGenerator`
-//Это счётчик для новых `id`.
-//`new AtomicLong(1)` означает:
-//- начинаем с `1`;
-//- каждый новый курьер получит следующее число.
-//Почему `AtomicLong`:
-//- тоже безопасен для многопоточной работы;
-//- несколько потоков не сломают счётчик так легко, как обычный `long`.
-
+        logger.info("✅ Создание курьеров завершено. Создано: {}", result.size());
+        return result;
     }
 
-    //### Метод `createCouriers`
-//public List<CourierDto> createCouriers(List<CreateCourierDto> createCourierDtos) {
-//На вход:
-//- список данных для создания.
-//На выход:
-//- список уже созданных курьеров с `id`.
-//Дальше:
-//List<CourierDto> createdCouriers = new ArrayList<>();
-//Создаётся пустой список результата.
-//for (CreateCourierDto createDto : createCourierDtos) {
-//Цикл по каждому входному объекту.
-//CourierDto courierDto = convertToDto(createDto);
-//Преобразуем входной объект в полноценный объект курьера.
-//Почему отдельный метод хорошо:
-//- логика преобразования вынесена в одно место;
-//- код метода `createCouriers` стал чище.
-// couriers.put(courierDto.getCourierId(), courierDto);
-//Кладём курьера в карту:
-//- ключ = `id`;
-//- значение = объект курьера.
-//createdCouriers.add(courierDto);
-//Добавляем курьера в список ответа.
-//После цикла:
-//return createdCouriers;
-//Возвращаем список созданных объектов.
-
     /**
-     * Получение всех курьеров
+     * Получение всех курьеров с пагинацией.
      */
+    @Transactional(readOnly = true)
     public List<CourierDto> getAllCouriers() {
-        logger.debug("Запрос всех курьеров. Всего в базе: {}", couriers.size());
-        List<CourierDto> result = couriers.values().stream()
-                .sorted(Comparator.comparing(CourierDto::getCourierId))
-                .toList();
+        logger.debug("📋 Запрос всех курьеров");
 
-        logger.debug("Возвращено курьеров: {}", result.size());
-        return result;
-        //Разбор:
-//
-//- `couriers.values()` — взять все объекты из карты;
-//- `.stream()` — перейти к Stream API;
-//- `.sorted(...)` — отсортировать;
-//- `Comparator.comparing(CourierDto::getCourierId)` — сортировать по `courierId`;
-//- `.toList()` — собрать обратно в список.
-
-        //Почему сортировка тут полезна:
-//
-//- `Map` не гарантирует удобный порядок;
-//- так ответ становится предсказуемым;
-//- тесты и клиентам проще работать.
-//
-
+        List<Courier> couriers = courierRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+        return couriers.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
     }
 
     /**
-     * Получение курьера по ID
+     * Получение курьеров с пагинацией.
+     *
+     * @param limit  количество записей на странице (по умолчанию 10)
+     * @param offset смещение (по умолчанию 0)
+     * @return список курьеров с пагинацией
      */
+    @Transactional(readOnly = true)
+    public List<CourierDto> getCouriersWithPagination(int limit, int offset) {
+        // Значения по умолчанию
+        int defaultLimit = 10;
+        int defaultOffset = 0;
+
+        // Применяем значения по умолчанию
+        if (limit <= 0) limit = defaultLimit;
+        if (offset < 0) offset = defaultOffset;
+
+        logger.debug("📋 Запрос курьеров с пагинацией: limit={}, offset={}", limit, offset);
+
+        // Создаем Pageable объект
+        Pageable pageable = PageRequest.of(offset / limit, limit, Sort.by(Sort.Direction.ASC, "id"));
+
+        // Получаем страницу из репозитория
+        Page<Courier> page = courierRepository.findAll(pageable);
+
+        return page.getContent().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Получение курьера по ID.
+     */
+    @Transactional(readOnly = true)
     public Optional<CourierDto> getCourierById(Long courierId) {
-        logger.debug("Поиск курьера по ID: {}", courierId);
+        logger.debug("🔍 Поиск курьера по ID: {}", courierId);
 
-        Optional<CourierDto> result = Optional.ofNullable(couriers.get(courierId));
-
-        if (result.isPresent()) {
-            logger.debug("Курьер найден: id={}, type={}",
-                    result.get().getCourierId(),
-                    result.get().getCourierType()
-            );
-        } else {
-            logger.warn("Курьер не найден: id={}", courierId);
-        }
-
-        return result;
+        return courierRepository.findById(courierId)
+                .map(this::convertToDto);
     }
 
-        //### Метод `getCourierById`
-//Что происходит:
-//- из карты пытаемся взять курьера по `id`;
-//- если ничего нет, `couriers.get(...)` вернёт `null`;
-//- `Optional.ofNullable(...)` аккуратно заворачивает результат в `Optional`.
-
-
     /**
-     * Проверка существования курьера
+     * Проверка существования курьера.
      */
+    @Transactional(readOnly = true)
     public boolean existsById(Long courierId) {
-        boolean exists = couriers.containsKey(courierId);
-        logger.debug("Проверка существования курьера id={}: {}", courierId, exists);
-        return exists;
+        return courierRepository.existsById(courierId);
+    }
 
-        //### Метод `existsById`
-//Проверяет, есть ли курьер.
-//Сейчас этот метод не используется.
-//Но он может пригодиться позже.
+    // ============================================
+    // 2. Поисковые методы из Repository
+    // ============================================
 
-//Например:
-//- перед обновлением;
-//- перед удалением;
-//- в более сложной валидации.
+    /**
+     * Поиск курьеров по типу.
+     */
+    @Transactional(readOnly = true)
+    public List<CourierDto> findByCourierType(CourierType type) {
+        logger.debug("🔍 Поиск курьеров по типу: {}", type);
+
+        return courierRepository.findByCourierType(type).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
     }
 
     /**
-     * Конвертация CreateCourierDto в CourierDto
+     * Поиск курьеров по типу с пагинацией.
      */
-    private CourierDto convertToDto(CreateCourierDto createDto) {
-        Long newId = idGenerator.getAndIncrement();
-        logger.debug("Конвертация: CreateCourierDto → CourierDto с id={}", newId);
+    @Transactional(readOnly = true)
+    public List<CourierDto> findByCourierType(CourierType type, int limit, int offset) {
+        int defaultLimit = 10;
+        int defaultOffset = 0;
 
+        if (limit <= 0) limit = defaultLimit;
+        if (offset < 0) offset = defaultOffset;
+
+        Pageable pageable = PageRequest.of(offset / limit, limit, Sort.by(Sort.Direction.ASC, "id"));
+
+        Page<Courier> page = courierRepository.findByCourierType(type, pageable);
+
+        return page.getContent().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Поиск курьеров по региону.
+     */
+    @Transactional(readOnly = true)
+    public List<CourierDto> findByRegion(Integer region) {
+        logger.debug("🔍 Поиск курьеров по региону: {}", region);
+
+        return courierRepository.findByRegionContaining(region).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Поиск курьеров по региону с пагинацией.
+     */
+    @Transactional(readOnly = true)
+    public List<CourierDto> findByRegion(Integer region, int limit, int offset) {
+        int defaultLimit = 10;
+        int defaultOffset = 0;
+
+        if (limit <= 0) limit = defaultLimit;
+        if (offset < 0) offset = defaultOffset;
+
+        Pageable pageable = PageRequest.of(offset / limit, limit, Sort.by(Sort.Direction.ASC, "id"));
+
+        Page<Courier> page = courierRepository.findByRegionContaining(region, pageable);
+
+        return page.getContent().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Поиск курьеров по типу и региону.
+     */
+    @Transactional(readOnly = true)
+    public List<CourierDto> findByTypeAndRegion(CourierType type, Integer region) {
+        logger.debug("🔍 Поиск курьеров по типу {} и региону {}", type, region);
+
+        // Передаем type.name() вместо type (String вместо CourierType)
+        return courierRepository.findByTypeAndRegion(type.name(), region).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    // ============================================
+    // 3. Статистика
+    // ============================================
+
+    /**
+     * Получение общего количества курьеров.
+     */
+    @Transactional(readOnly = true)
+    public long countCouriers() {
+        return courierRepository.count();
+    }
+
+    /**
+     * Получение всех типов курьеров.
+     */
+    @Transactional(readOnly = true)
+    public List<CourierType> findAllCourierTypes() {
+        return courierRepository.findAllCourierTypes();
+    }
+
+    // ============================================
+    // 4. Методы конвертации: Entity ↔ DTO
+    // ============================================
+
+    /**
+     * Конвертация CreateCourierDto → Courier (Entity)
+     */
+    private Courier convertToEntity(CreateCourierDto dto) {
+        Courier courier = new Courier();
+        courier.setCourierType(dto.getCourierType());
+        courier.setRegions(dto.getRegions());
+        courier.setWorkingHours(dto.getWorkingHours());
+        // createdAt и updatedAt устанавливаются автоматически
+        return courier;
+    }
+
+    /**
+     * Конвертация Courier (Entity) → CourierDto
+     */
+    private CourierDto convertToDto(Courier entity) {
         return new CourierDto(
-                newId,
-                createDto.getCourierType(),
-                new ArrayList<>(createDto.getRegions()),
-                new ArrayList<>(createDto.getWorkingHours())
+                entity.getId(),
+                entity.getCourierType(),
+                entity.getRegions(),
+                entity.getWorkingHours()
         );
     }
+
+    /**
+     * Конвертация списка Entities → список DTOs
+     */
+    private List<CourierDto> convertToDtoList(List<Courier> entities) {
+        return entities.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
 }
-
-
-
-//### Приватный метод `convertToDto`
-//private CourierDto convertToDto(CreateCourierDto createDto) {
-//`private` значит:
-
-//- использовать можно только внутри `CourierService`.
-
-//Long newId = idGenerator.getAndIncrement();
-//Очень важная строка.
-
-//Что делает:
-//- берёт текущее значение счётчика;
-//- возвращает его;
-//- потом увеличивает счётчик на 1.
-
-//Например:
-//- сначала вернёт `1`;
-//- потом `2`;
-//- потом `3`.
-
-//Дальше:
-//return new CourierDto(
-//        newId,
-//        createDto.getCourierType(),
-//        new ArrayList<>(createDto.getRegions()),
-//        new ArrayList<>(createDto.getWorkingHours())
-//);
-
-//Создаётся новый объект `CourierDto`
-//Что туда кладётся:
-//- новый `id`;
-//- тип курьера;
-//- список регионов;
-//- список рабочих часов.
-
-//Почему списки копируются через `new ArrayList<>(...)`:
-//- чтобы не хранить прямую ссылку на внешний список;
-//- это чуть безопаснее;
-//- меньше шанс, что внешний код потом случайно изменит внутренние данные.
-
-//### Главная мысль по сервису
-//Этот сервис сейчас играет роль мини-базы данных и бизнес-логики одновременно.
-//Позже, когда появится настоящая БД:
-//- карта исчезнет;
-//- вместо неё будет repository;
-//- логика создания может остаться в сервисе.
