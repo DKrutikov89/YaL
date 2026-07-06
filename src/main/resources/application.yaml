@@ -28,8 +28,6 @@ spring:
     username: postgres
     password: password
     driver-class-name: org.postgresql.Driver
-
-    # Настройки HikariCP (connection pool)
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -58,30 +56,37 @@ spring:
   # Конфигурация Liquibase (миграции)
   liquibase:
     enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.yaml
+    change-log: classpath:db/changelog/db.changelog-master.xml
     drop-first: false
     default-schema: lavka_schema
+
+  # Конфигурация Swagger / OpenAPI
+  springdoc:
+    api-docs:
+      path: /v3/api-docs
+    swagger-ui:
+      path: /swagger-ui.html
 
 # Конфигурация логирования
 logging:
   level:
-    root: INFO                        # Общий уровень логирования
-    com.yandex.lavka: DEBUG          # DEBUG для нашего пакета
-    org.springframework.web: DEBUG   # DEBUG для Spring Web (полезно для отладки)
-    org.hibernate.SQL: DEBUG         # SQL запросы Hibernate
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE  # Параметры SQL
-    org.springframework.jdbc.core: DEBUG  # JDBC логи
-    liquibase: INFO                  # Логи миграций
-    com.zaxxer.hikari: DEBUG         # Логи HikariCP
+    root: INFO
+    com.yandex.lavka: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.jdbc.core: DEBUG
+    liquibase: INFO
+    com.zaxxer.hikari: DEBUG
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"  # Формат вывода в консоль
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
 # Конфигурация управления приложением (Actuator)
 management:
   endpoints:
     web:
       exposure:
-        include: health,info          # Открыть endpoints для проверки здоровья
+        include: health,info
   endpoint:
     health:
-      show-details: always           # Показывать детали здоровья приложения
+      show-details: always
