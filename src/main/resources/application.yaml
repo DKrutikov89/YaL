@@ -60,13 +60,6 @@ spring:
     drop-first: false
     default-schema: lavka_schema
 
-  # Конфигурация Swagger / OpenAPI
-  springdoc:
-    api-docs:
-      path: /v3/api-docs
-    swagger-ui:
-      path: /swagger-ui.html
-
 # Конфигурация логирования
 logging:
   level:
@@ -90,3 +83,9 @@ management:
   endpoint:
     health:
       show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
