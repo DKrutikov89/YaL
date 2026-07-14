@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="3" author="codex">
+        <createTable tableName="orders" schemaName="lavka_schema">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="weight" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="region" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delivery_hours" type="TEXT[]">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cost" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="completed_time" type="TIMESTAMP"/>
+            <column name="courier_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableSchemaName="lavka_schema"
+                baseTableName="orders"
+                baseColumnNames="courier_id"
+                referencedTableSchemaName="lavka_schema"
+                referencedTableName="couriers"
+                referencedColumnNames="id"
+                constraintName="fk_orders_courier"/>
+
+        <addCheckConstraint
+                schemaName="lavka_schema"
+                tableName="orders"
+                constraintName="chk_orders_weight_positive"
+                checkConstraint="weight > 0"/>
+
+        <addCheckConstraint
+                schemaName="lavka_schema"
+                tableName="orders"
+                constraintName="chk_orders_region_positive"
+                checkConstraint="region > 0"/>
+
+        <addCheckConstraint
+                schemaName="lavka_schema"
+                tableName="orders"
+                constraintName="chk_orders_cost_positive"
+                checkConstraint="cost > 0"/>
+
+        <createIndex indexName="idx_orders_region" tableName="orders" schemaName="lavka_schema">
+            <column name="region"/>
+        </createIndex>
+
+        <createIndex indexName="idx_orders_courier_id" tableName="orders" schemaName="lavka_schema">
+            <column name="courier_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_orders_completed_time" tableName="orders" schemaName="lavka_schema">
+            <column name="completed_time"/>
+        </createIndex>
+
+        <createIndex indexName="idx_orders_created_at" tableName="orders" schemaName="lavka_schema">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

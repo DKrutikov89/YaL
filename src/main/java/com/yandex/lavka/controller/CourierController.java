@@ -45,11 +45,17 @@ public class CourierController {
 
     @GetMapping
     public ResponseEntity<List<CourierDto>> getAllCouriers(
-            @RequestParam(defaultValue = "10") @Min(1) int limit,
-            @RequestParam(defaultValue = "0") @Min(0) int offset) {
+            @RequestParam(required = false) @Min(1) Integer limit,
+            @RequestParam(required = false) @Min(0) Integer offset) {
         logger.info("Received GET /couriers with limit={} and offset={}", limit, offset);
 
-        return ResponseEntity.ok(courierService.getCouriersWithPagination(limit, offset));
+        if (limit == null && offset == null) {
+            return ResponseEntity.ok(courierService.getAllCouriers());
+        }
+
+        return ResponseEntity.ok(courierService.getCouriersWithPagination(
+                limit != null ? limit : 10,
+                offset != null ? offset : 0));
     }
 
     @GetMapping("/{courier_id}")

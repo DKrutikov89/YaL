@@ -29,10 +29,10 @@ spring:
     password: password
     driver-class-name: org.postgresql.Driver
     hikari:
+      connection-timeout: 60000
       maximum-pool-size: 10
       minimum-idle: 5
       idle-timeout: 300000
-      connection-timeout: 30000
       max-lifetime: 1800000
       pool-name: LavkaHikariPool
       auto-commit: true
@@ -67,8 +67,6 @@ logging:
     com.yandex.lavka: DEBUG
     org.springframework.web: DEBUG
     org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.jdbc.core: DEBUG
     liquibase: INFO
     com.zaxxer.hikari: DEBUG
   pattern:
@@ -84,6 +82,7 @@ management:
     health:
       show-details: always
 
+# Конфигурация Swagger/OpenAPI
 springdoc:
   api-docs:
     path: /v3/api-docs

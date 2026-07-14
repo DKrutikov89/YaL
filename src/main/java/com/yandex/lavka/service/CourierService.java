@@ -7,6 +7,7 @@ import com.yandex.lavka.model.enums.CourierType;
 import com.yandex.lavka.repository.CourierRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,10 +40,21 @@ public class CourierService {
     }
 
     @Transactional(readOnly = true)
+    public List<CourierDto> getAllCouriers() {
+        logger.debug("Fetching all couriers");
+
+        return courierRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+                .map(this::convertToDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<CourierDto> getCouriersWithPagination(int limit, int offset) {
         logger.debug("Fetching couriers with limit={} and offset={}", limit, offset);
 
-        return courierRepository.findAllWithLimitOffset(limit, offset).stream()
+        return courierRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+                .skip(offset)
+                .limit(limit)
                 .map(this::convertToDto)
                 .toList();
     }
@@ -68,7 +80,9 @@ public class CourierService {
     public List<CourierDto> findByCourierType(CourierType courierType, int limit, int offset) {
         logger.debug("Fetching couriers by type={} with limit={} and offset={}", courierType, limit, offset);
 
-        return courierRepository.findByCourierType(courierType.name(), limit, offset).stream()
+        return courierRepository.findByCourierTypeOrderByIdAsc(courierType).stream()
+                .skip(offset)
+                .limit(limit)
                 .map(this::convertToDto)
                 .toList();
     }
@@ -77,7 +91,8 @@ public class CourierService {
     public List<CourierDto> findByRegion(Integer region) {
         logger.debug("Fetching couriers by region={}", region);
 
-        return courierRepository.findByRegionContaining(region).stream()
+        return courierRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+                .filter(courier -> courier.getRegions() != null && courier.getRegions().contains(region))
                 .map(this::convertToDto)
                 .toList();
     }
@@ -86,7 +101,10 @@ public class CourierService {
     public List<CourierDto> findByRegion(Integer region, int limit, int offset) {
         logger.debug("Fetching couriers by region={} with limit={} and offset={}", region, limit, offset);
 
-        return courierRepository.findByRegionContaining(region, limit, offset).stream()
+        return courierRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+                .filter(courier -> courier.getRegions() != null && courier.getRegions().contains(region))
+                .skip(offset)
+                .limit(limit)
                 .map(this::convertToDto)
                 .toList();
     }

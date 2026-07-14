@@ -8,5 +8,6 @@
     <!-- Подключаем все файлы миграций -->
     <include file="v1.0/001-create-couriers-table.xml" relativeToChangelogFile="true"/>
     <include file="v1.0/002-add-courier-type-check.xml" relativeToChangelogFile="true"/>
+    <include file="v1.0/003-create-orders-table.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

@@ -3,6 +3,7 @@ package com.yandex.lavka;
 import com.yandex.lavka.model.dto.CourierDto;
 import com.yandex.lavka.model.enums.CourierType;
 import com.yandex.lavka.repository.CourierRepository;
+import com.yandex.lavka.repository.OrderRepository;
 import com.yandex.lavka.service.CourierService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -22,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("h2")
 class YandexLavkaApplicationTests {
 
     @Autowired
@@ -31,10 +34,14 @@ class YandexLavkaApplicationTests {
     private CourierRepository courierRepository;
 
     @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
     private CourierService courierService;
 
     @BeforeEach
     void clearDatabase() {
+        orderRepository.deleteAll();
         courierRepository.deleteAll();
     }
 
@@ -275,8 +282,169 @@ class YandexLavkaApplicationTests {
                 .andExpect(jsonPath("$.couriers[0].courier_id").isNumber());
     }
 
+    @Test
+    void createOrdersReturnsCreatedOrders() throws Exception {
+        String requestBody = """
+                {
+                  "orders": [
+                    {
+                      "weight": 0.5,
+                      "region": 1,
+                      "delivery_hours": ["09:00-18:00"],
+                      "cost": 230
+                    },
+                    {
+                      "weight": 2.0,
+                      "region": 2,
+                      "delivery_hours": ["10:00-12:00", "13:00-16:00"],
+                      "cost": 450
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orders.length()").value(2))
+                .andExpect(jsonPath("$.orders[0].order_id").isNumber())
+                .andExpect(jsonPath("$.orders[0].region").value(1))
+                .andExpect(jsonPath("$.orders[1].cost").value(450));
+    }
+
+    @Test
+    void getOrdersSupportsLimitAndOffset() throws Exception {
+        createOrder(0.5, 1, 230, "09:00-18:00");
+        createOrder(1.5, 2, 330, "10:00-18:00");
+        createOrder(2.5, 3, 430, "11:00-18:00");
+
+        mockMvc.perform(get("/orders?limit=1&offset=1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].region").value(2))
+                .andExpect(jsonPath("$[0].cost").value(330));
+    }
+
+    @Test
+    void getOrderByIdReturnsCreatedOrder() throws Exception {
+        Long orderId = createOrder(0.9, 7, 610, "12:00-18:00");
+
+        mockMvc.perform(get("/orders/" + orderId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.order_id").value(orderId))
+                .andExpect(jsonPath("$.region").value(7))
+                .andExpect(jsonPath("$.cost").value(610));
+    }
+
+    @Test
+    void completeOrderAssignsCourierAndIsIdempotent() throws Exception {
+        Long courierId = createCourierAndReturnId("AUTO", new int[]{1}, "09:00-18:00");
+        Long orderId = createOrder(1.0, 1, 500, "09:00-18:00");
+
+        String requestBody = """
+                {
+                  "complete_info": [
+                    {
+                      "courier_id": %d,
+                      "order_id": %d,
+                      "complete_time": "2023-01-20T10:33:01"
+                    }
+                  ]
+                }
+                """.formatted(courierId, orderId);
+
+        mockMvc.perform(post("/orders/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orders[0].order_id").value(orderId))
+                .andExpect(jsonPath("$.orders[0].courier_id").value(courierId))
+                .andExpect(jsonPath("$.orders[0].completed_time").value("2023-01-20T10:33:01"));
+
+        mockMvc.perform(post("/orders/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orders[0].order_id").value(orderId))
+                .andExpect(jsonPath("$.orders[0].courier_id").value(courierId));
+    }
+
+    @Test
+    void completeOrderWithWrongCourierReturnsBadRequest() throws Exception {
+        Long courierId = createCourierAndReturnId("AUTO", new int[]{1}, "09:00-18:00");
+        Long secondCourierId = createCourierAndReturnId("BIKE", new int[]{1}, "09:00-18:00");
+        Long orderId = createOrder(1.0, 1, 500, "09:00-18:00");
+
+        String firstCompletion = """
+                {
+                  "complete_info": [
+                    {
+                      "courier_id": %d,
+                      "order_id": %d,
+                      "complete_time": "2023-01-20T10:33:01"
+                    }
+                  ]
+                }
+                """.formatted(courierId, orderId);
+
+        String wrongCourierCompletion = """
+                {
+                  "complete_info": [
+                    {
+                      "courier_id": %d,
+                      "order_id": %d,
+                      "complete_time": "2023-01-20T10:35:01"
+                    }
+                  ]
+                }
+                """.formatted(secondCourierId, orderId);
+
+        mockMvc.perform(post("/orders/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(firstCompletion))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/orders/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(wrongCourierCompletion))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Bad Request"));
+    }
+
     private void createCourier(String courierType, int region, String workingHours) throws Exception {
         createCourierWithRegions(courierType, new int[]{region}, workingHours);
+    }
+
+    private Long createCourierAndReturnId(String courierType, int[] regions, String workingHours) throws Exception {
+        String regionsJson = java.util.Arrays.stream(regions)
+                .mapToObj(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(", "));
+
+        String requestBody = """
+                {
+                  "couriers": [
+                    {
+                      "courier_type": "%s",
+                      "regions": [%s],
+                      "working_hours": ["%s"]
+                    }
+                  ]
+                }
+                """.formatted(courierType, regionsJson, workingHours);
+
+        String response = mockMvc.perform(post("/couriers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        int keyIndex = response.indexOf("\"courier_id\":");
+        int valueStart = keyIndex + "\"courier_id\":".length();
+        int valueEnd = response.indexOf(",", valueStart);
+        return Long.parseLong(response.substring(valueStart, valueEnd).trim());
     }
 
     private void createCourierWithRegions(String courierType, int[] regions, String workingHours) throws Exception {
@@ -300,5 +468,33 @@ class YandexLavkaApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk());
+    }
+
+    private Long createOrder(double weight, int region, int cost, String workingHours) throws Exception {
+        String requestBody = """
+                {
+                  "orders": [
+                    {
+                      "weight": %s,
+                      "region": %d,
+                      "delivery_hours": ["%s"],
+                      "cost": %d
+                    }
+                  ]
+                }
+                """.formatted(weight, region, workingHours, cost);
+
+        String response = mockMvc.perform(post("/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        int keyIndex = response.indexOf("\"order_id\":");
+        int valueStart = keyIndex + "\"order_id\":".length();
+        int valueEnd = response.indexOf(",", valueStart);
+        return Long.parseLong(response.substring(valueStart, valueEnd).trim());
     }
 }

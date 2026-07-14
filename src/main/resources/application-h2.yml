@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: 'jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS lavka_schema\;SET SCHEMA lavka_schema'
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        default_schema: lavka_schema
+  liquibase:
+    enabled: false

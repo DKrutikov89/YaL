@@ -4,13 +4,16 @@ import com.yandex.lavka.model.enums.CourierType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -52,8 +55,7 @@ public class Courier {
     @JdbcTypeCode(SqlTypes.ARRAY)           // ← Массив в PostgreSQL
     @Column(
             name = "regions",
-            nullable = false,
-            columnDefinition = "INTEGER[]"  // ← Тип в БД
+            nullable = false
     )
     private List<Integer> regions;
 
@@ -63,8 +65,7 @@ public class Courier {
     @JdbcTypeCode(SqlTypes.ARRAY)           // ← Массив в PostgreSQL
     @Column(
             name = "working_hours",
-            nullable = false,
-            columnDefinition = "TEXT[]"     // ← Тип в БД
+            nullable = false
     )
     private List<String> workingHours;
 
@@ -88,4 +89,9 @@ public class Courier {
             nullable = false
     )
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "courier", fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<Order> orders = new ArrayList<>();
 }

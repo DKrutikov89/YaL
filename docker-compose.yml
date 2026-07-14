@@ -7,14 +7,14 @@ services: # Список сервисов
   postgres:   # Название сервиса
     image: postgres:15.2-alpine           # Образ PostgreSQL 15.2
     container_name: lavka-postgres        # Имя контейнера
+    ports:  # Проброс портов
+      - "5432:5432"                       # Проброс порта (хост:контейнер)
     environment: # Переменные окружения
       POSTGRES_DB: yandex_lavka           # Название базы данных
       POSTGRES_USER: postgres             # Имя пользователя
       POSTGRES_PASSWORD: password         # Пароль
       POSTGRES_INITDB_ARGS: "-E UTF8"     # Кодировка UTF-8
       TZ: Europe/Moscow                   # Часовой пояс
-    ports:  # Проброс портов
-      - "5432:5432"                       # Проброс порта (хост:контейнер)
     volumes: # Тома для данных
       - postgres_data:/var/lib/postgresql/data  # Сохранение данных
       - ./docker/init-scripts:/docker-entrypoint-initdb.d  # Скрипты инициализации
