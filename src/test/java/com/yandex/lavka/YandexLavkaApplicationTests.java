@@ -555,6 +555,76 @@ class YandexLavkaApplicationTests {
                 .andExpect(jsonPath("$.error_code").value("ORDER_ALREADY_COMPLETED"));
     }
 
+    @Test
+    void getCourierMetaInfoReturnsAnalyticsForCompletedOrders() throws Exception {
+        Long courierId = createCourierAndReturnId("FOOT", new int[]{1, 2}, "09:00-18:00");
+        Long firstOrderId = createOrder(1.0, 1, 300, "09:00-18:00");
+        Long secondOrderId = createOrder(2.0, 2, 450, "09:00-18:00");
+
+        completeOrder(courierId, firstOrderId, "2023-01-15T12:30:00");
+        completeOrder(courierId, secondOrderId, "2023-01-16T16:45:00");
+
+        mockMvc.perform(get("/couriers/meta-info/" + courierId
+                        + "?startDate=2023-01-01&endDate=2023-01-31"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.courier_id").value(courierId))
+                .andExpect(jsonPath("$.courier_type").value("FOOT"))
+                .andExpect(jsonPath("$.earnings").value(1500))
+                .andExpect(jsonPath("$.rating").value(0.02));
+    }
+
+    @Test
+    void getCourierMetaInfoWithoutCompletedOrdersReturnsBaseInfoOnly() throws Exception {
+        Long courierId = createCourierAndReturnId("BIKE", new int[]{1, 2, 3}, "08:00-20:00");
+
+        mockMvc.perform(get("/couriers/meta-info/" + courierId
+                        + "?startDate=2023-01-01&endDate=2023-01-31"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.courier_id").value(courierId))
+                .andExpect(jsonPath("$.courier_type").value("BIKE"))
+                .andExpect(jsonPath("$.earnings").doesNotExist())
+                .andExpect(jsonPath("$.rating").doesNotExist());
+    }
+
+    @Test
+    void getCourierMetaInfoRejectsInvalidDateRange() throws Exception {
+        Long courierId = createCourierAndReturnId("AUTO", new int[]{1}, "09:00-18:00");
+
+        mockMvc.perform(get("/couriers/meta-info/" + courierId
+                        + "?startDate=2023-01-31&endDate=2023-01-01"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error_code").value("INVALID_DATE_RANGE"));
+    }
+
+    @Test
+    void getCourierMetaInfoRejectsInvalidDateFormat() throws Exception {
+        Long courierId = createCourierAndReturnId("AUTO", new int[]{1}, "09:00-18:00");
+
+        mockMvc.perform(get("/couriers/meta-info/" + courierId
+                        + "?startDate=01-01-2023&endDate=31-01-2023"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error_code").value("INVALID_DATE_FORMAT"));
+    }
+
+    private void completeOrder(Long courierId, Long orderId, String completeTime) throws Exception {
+        String requestBody = """
+                {
+                  "complete_info": [
+                    {
+                      "courier_id": %d,
+                      "order_id": %d,
+                      "complete_time": "%s"
+                    }
+                  ]
+                }
+                """.formatted(courierId, orderId, completeTime);
+
+        mockMvc.perform(post("/orders/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk());
+    }
+
     private void createCourier(String courierType, int region, String workingHours) throws Exception {
         createCourierWithRegions(courierType, new int[]{region}, workingHours);
     }

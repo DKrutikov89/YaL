@@ -13,6 +13,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -118,6 +119,20 @@ public class GlobalExceptionHandler {
                 request,
                 ErrorCode.INVALID_JSON,
                 null
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+        logger.warn("Invalid request parameter type: {}", ex.getMessage());
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                resolveMessage("error.date-format.invalid", null),
+                request,
+                ErrorCode.INVALID_DATE_FORMAT,
+                Map.of(ex.getName(), ex.getValue() == null ? "null" : ex.getValue().toString())
         );
     }
 

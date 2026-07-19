@@ -11,6 +11,7 @@ import com.yandex.lavka.model.entity.Courier;
 import com.yandex.lavka.model.entity.Order;
 import com.yandex.lavka.repository.CourierRepository;
 import com.yandex.lavka.repository.OrderRepository;
+import org.springframework.cache.annotation.CacheEvict;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -72,6 +73,7 @@ public class OrderService {
     }
 
     @Transactional
+    @CacheEvict(value = "courierMetaInfo", allEntries = true)
     public List<OrderDto> completeOrders(List<CompleteOrderDto> completeOrderDtos) {
         logger.info("Completing {} orders", completeOrderDtos.size());
 

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -101,4 +102,37 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             """
     )
     Object[] fetchOrderStatistics();
+
+    @Query(
+            """
+            SELECT o.courier.id AS courierId,
+                   COALESCE(SUM(o.cost), 0) AS totalCost,
+                   COUNT(o) AS ordersCount
+            FROM Order o
+            WHERE o.courier.id = :courierId
+              AND o.completedTime IS NOT NULL
+              AND o.completedTime BETWEEN :startDate AND :endDate
+            GROUP BY o.courier.id
+            """
+    )
+    Optional<EarningsProjection> findEarningsProjection(
+            @Param("courierId") Long courierId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
+    @Query(
+            """
+            SELECT o.courier.id AS courierId,
+                   COUNT(o) AS completedOrders
+            FROM Order o
+            WHERE o.courier.id = :courierId
+              AND o.completedTime IS NOT NULL
+              AND o.completedTime BETWEEN :startDate AND :endDate
+            GROUP BY o.courier.id
+            """
+    )
+    Optional<RatingProjection> findRatingProjection(
+            @Param("courierId") Long courierId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 }
