@@ -1,6 +1,8 @@
 package com.yandex.lavka.controller;
 
 import com.yandex.lavka.model.dto.CourierMetaInfoResponse;
+import com.yandex.lavka.ratelimit.RateLimit;
+import com.yandex.lavka.ratelimit.RateLimitKeyType;
 import com.yandex.lavka.service.RatingService;
 import jakarta.validation.constraints.Positive;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -26,6 +28,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/{courier_id}")
+    @RateLimit(requestsPerSecond = 10, burstCapacity = 10, keyType = RateLimitKeyType.IP_AND_PATH)
     public ResponseEntity<CourierMetaInfoResponse> getCourierMetaInfo(
             @PathVariable("courier_id") @Positive Long courierId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

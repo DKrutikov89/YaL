@@ -1,43 +1,43 @@
 # Конфигурация сервера
 server:
-  port: 8080                          # Порт для HTTP сервера
+  port: 8080
   servlet:
-    context-path: /                   # Контекстный путь (root)
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
 
-# Конфигурация Spring приложения
 spring:
   application:
-    name: yandex-lavka               # Имя приложения для логов и мониторинга
+    name: yandex-lavka
 
-  # Конфигурация JSON сериализации
   jackson:
-    property-naming-strategy: SNAKE_CASE     # camelCase -> snake_case
-    default-property-inclusion: NON_NULL     # Не включать null поля
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: NON_NULL
     serialization:
-      write-dates-as-timestamps: false      # ISO-8601 формат дат
+      write-dates-as-timestamps: false
     deserialization:
-      fail-on-unknown-properties: false     # Игнорировать неизвестные поля
+      fail-on-unknown-properties: false
 
-  # Конфигурация веб слоя
   mvc:
-    throw-exception-if-no-handler-found: true  # 404 для несуществующих endpoints
+    throw-exception-if-no-handler-found: true
 
-  # Конфигурация подключения к БД
   datasource:
     url: jdbc:postgresql://localhost:5432/yandex_lavka
     username: postgres
     password: password
     driver-class-name: org.postgresql.Driver
     hikari:
-      connection-timeout: 60000
+      connection-timeout: 30000
+      validation-timeout: 5000
       maximum-pool-size: 10
       minimum-idle: 5
       idle-timeout: 300000
       max-lifetime: 1800000
+      leak-detection-threshold: 2000
       pool-name: LavkaHikariPool
       auto-commit: true
 
-  # Конфигурация JPA / Hibernate
   jpa:
     hibernate:
       ddl-auto: validate
@@ -53,14 +53,15 @@ spring:
         default_schema: lavka_schema
     open-in-view: false
 
-  # Конфигурация Liquibase (миграции)
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.xml
     drop-first: false
     default-schema: lavka_schema
 
-# Конфигурация логирования
+  cache:
+    type: caffeine
+
 logging:
   level:
     root: INFO
@@ -72,19 +73,39 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
-# Конфигурация управления приложением (Actuator)
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus,caches
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        app.method.execution: true
+    tags:
+      application: ${spring.application.name}
 
-# Конфигурация Swagger/OpenAPI
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+app:
+  rate-limit:
+    default-limit: 10
+    burst-capacity: 20
+    duration-seconds: 1
+  performance:
+    slow-call-threshold-ms: 200

@@ -6,6 +6,8 @@ import com.yandex.lavka.model.dto.CompleteOrdersResponse;
 import com.yandex.lavka.model.dto.CreateOrderRequest;
 import com.yandex.lavka.model.dto.CreateOrdersResponse;
 import com.yandex.lavka.model.dto.OrderDto;
+import com.yandex.lavka.ratelimit.RateLimit;
+import com.yandex.lavka.ratelimit.RateLimitKeyType;
 import com.yandex.lavka.service.OrderService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -37,12 +39,14 @@ public class OrderController {
     }
 
     @PostMapping
+    @RateLimit(requestsPerSecond = 5, burstCapacity = 10, keyType = RateLimitKeyType.IP_AND_PATH)
     public ResponseEntity<CreateOrdersResponse> createOrders(@Valid @RequestBody CreateOrderRequest request) {
         logger.info("Received POST /orders with {} orders", request.getOrders().size());
         return ResponseEntity.ok(new CreateOrdersResponse(orderService.createOrders(request.getOrders())));
     }
 
     @GetMapping
+    @RateLimit(requestsPerSecond = 10, burstCapacity = 10, keyType = RateLimitKeyType.IP_AND_PATH)
     public ResponseEntity<List<OrderDto>> getOrders(
             @RequestParam(required = false) @Min(1) Integer limit,
             @RequestParam(required = false) @Min(0) Integer offset) {
@@ -58,6 +62,7 @@ public class OrderController {
     }
 
     @GetMapping("/{order_id}")
+    @RateLimit(requestsPerSecond = 10, burstCapacity = 10, keyType = RateLimitKeyType.IP_AND_PATH)
     public ResponseEntity<OrderDto> getOrderById(@PathVariable("order_id") Long orderId) {
         logger.info("Received GET /orders/{}", orderId);
         OrderDto order = orderService.getOrderById(orderId)
@@ -66,6 +71,7 @@ public class OrderController {
     }
 
     @PostMapping("/complete")
+    @RateLimit(requestsPerSecond = 5, burstCapacity = 10, keyType = RateLimitKeyType.IP_AND_PATH)
     public ResponseEntity<CompleteOrdersResponse> completeOrders(@Valid @RequestBody CompleteOrderRequest request) {
         logger.info("Received POST /orders/complete with {} completion records", request.getCompleteInfo().size());
         return ResponseEntity.ok(new CompleteOrdersResponse(orderService.completeOrders(request.getCompleteInfo())));

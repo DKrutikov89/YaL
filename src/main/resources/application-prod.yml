@@ -1,0 +1,28 @@
+server:
+  compression:
+    enabled: true
+
+spring:
+  cache:
+    type: caffeine
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      leak-detection-threshold: 2000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,caches
+
+app:
+  rate-limit:
+    default-limit: 10
+    burst-capacity: 20
+    duration-seconds: 1

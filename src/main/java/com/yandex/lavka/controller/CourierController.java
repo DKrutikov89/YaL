@@ -4,6 +4,8 @@ import com.yandex.lavka.exception.CourierNotFoundException;
 import com.yandex.lavka.model.dto.CourierDto;
 import com.yandex.lavka.model.dto.CreateCourierRequest;
 import com.yandex.lavka.model.dto.CreateCouriersResponse;
+import com.yandex.lavka.ratelimit.RateLimit;
+import com.yandex.lavka.ratelimit.RateLimitKeyType;
 import com.yandex.lavka.service.CourierService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -36,6 +38,7 @@ public class CourierController {
     }
 
     @PostMapping
+    @RateLimit(requestsPerSecond = 5, burstCapacity = 10, keyType = RateLimitKeyType.IP_AND_PATH)
     public ResponseEntity<CreateCouriersResponse> createCouriers(@Valid @RequestBody CreateCourierRequest request) {
         logger.info("Received POST /couriers with {} couriers", request.getCouriers().size());
 
@@ -44,6 +47,7 @@ public class CourierController {
     }
 
     @GetMapping
+    @RateLimit(requestsPerSecond = 10, burstCapacity = 10, keyType = RateLimitKeyType.IP_AND_PATH)
     public ResponseEntity<List<CourierDto>> getAllCouriers(
             @RequestParam(required = false) @Min(1) Integer limit,
             @RequestParam(required = false) @Min(0) Integer offset) {
@@ -59,6 +63,7 @@ public class CourierController {
     }
 
     @GetMapping("/{courier_id}")
+    @RateLimit(requestsPerSecond = 10, burstCapacity = 10, keyType = RateLimitKeyType.IP_AND_PATH)
     public ResponseEntity<CourierDto> getCourierById(@PathVariable("courier_id") Long courierId) {
         logger.info("Received GET /couriers/{}", courierId);
 

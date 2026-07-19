@@ -5,6 +5,7 @@ import com.yandex.lavka.model.enums.CourierType;
 import com.yandex.lavka.repository.CourierRepository;
 import com.yandex.lavka.repository.OrderRepository;
 import com.yandex.lavka.service.CourierService;
+import com.yandex.lavka.service.RateLimiterService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,10 +41,14 @@ class YandexLavkaApplicationTests {
     @Autowired
     private CourierService courierService;
 
+    @Autowired
+    private RateLimiterService rateLimiterService;
+
     @BeforeEach
     void clearDatabase() {
         orderRepository.deleteAll();
         courierRepository.deleteAll();
+        rateLimiterService.clearBuckets();
     }
 
     @Test
@@ -604,6 +609,42 @@ class YandexLavkaApplicationTests {
                         + "?startDate=01-01-2023&endDate=31-01-2023"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error_code").value("INVALID_DATE_FORMAT"));
+    }
+
+    @Test
+    void rateLimitingReturnsTooManyRequestsWhenLimitExceeded() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(get("/couriers")
+                            .header("X-Forwarded-For", "203.0.113.10"))
+                    .andExpect(status().isOk());
+        }
+
+        mockMvc.perform(get("/couriers")
+                        .header("X-Forwarded-For", "203.0.113.10"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.error_code").value("RATE_LIMIT_EXCEEDED"))
+                .andExpect(jsonPath("$.message").value("Rate limit exceeded. Please retry later."));
+    }
+
+    @Test
+    void healthEndpointExposesCustomInfrastructureChecks() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.components.cache.status").value("UP"))
+                .andExpect(jsonPath("$.components.rateLimiter.status").value("UP"));
+    }
+
+    @Test
+    void metricsEndpointShowsRateLimitMetricAfterRequests() throws Exception {
+        mockMvc.perform(get("/couriers")
+                        .header("X-Forwarded-For", "198.51.100.42"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/actuator/metrics/app.rate.limit.requests"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("app.rate.limit.requests"))
+                .andExpect(jsonPath("$.availableTags").isArray());
     }
 
     private void completeOrder(Long courierId, Long orderId, String completeTime) throws Exception {

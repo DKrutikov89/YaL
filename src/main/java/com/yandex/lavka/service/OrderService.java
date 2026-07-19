@@ -12,6 +12,8 @@ import com.yandex.lavka.model.entity.Order;
 import com.yandex.lavka.repository.CourierRepository;
 import com.yandex.lavka.repository.OrderRepository;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +38,10 @@ public class OrderService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "orderList", allEntries = true),
+            @CacheEvict(value = "orderDetails", allEntries = true)
+    })
     public List<OrderDto> createOrders(List<CreateOrderDto> createOrderDtos) {
         logger.info("Creating {} orders", createOrderDtos.size());
 
@@ -49,6 +55,7 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "orderList", key = "'all'")
     public List<OrderDto> getAllOrders() {
         logger.debug("Fetching all orders");
         return orderRepository.findAllWithCourier().stream()
@@ -57,6 +64,7 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "orderList", key = "'page:' + #limit + ':' + #offset")
     public List<OrderDto> getOrdersWithPagination(int limit, int offset) {
         logger.debug("Fetching orders with limit={} and offset={}", limit, offset);
         Pageable pageable = PageRequest.of(0, offset + limit);
@@ -67,13 +75,18 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "orderDetails", key = "#orderId")
     public Optional<OrderDto> getOrderById(Long orderId) {
         logger.debug("Fetching order by id={}", orderId);
         return orderRepository.findDetailedById(orderId).map(this::toDto);
     }
 
     @Transactional
-    @CacheEvict(value = "courierMetaInfo", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "courierMetaInfo", allEntries = true),
+            @CacheEvict(value = "orderList", allEntries = true),
+            @CacheEvict(value = "orderDetails", allEntries = true)
+    })
     public List<OrderDto> completeOrders(List<CompleteOrderDto> completeOrderDtos) {
         logger.info("Completing {} orders", completeOrderDtos.size());
 

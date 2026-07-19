@@ -5,6 +5,9 @@ import com.yandex.lavka.model.dto.CreateCourierDto;
 import com.yandex.lavka.model.entity.Courier;
 import com.yandex.lavka.model.enums.CourierType;
 import com.yandex.lavka.repository.CourierRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
@@ -27,6 +30,11 @@ public class CourierService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "courierList", allEntries = true),
+            @CacheEvict(value = "courierDetails", allEntries = true),
+            @CacheEvict(value = "courierMetaInfo", allEntries = true)
+    })
     public List<CourierDto> createCouriers(List<CreateCourierDto> createCourierDtos) {
         logger.info("Creating {} couriers", createCourierDtos.size());
 
@@ -40,6 +48,7 @@ public class CourierService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "courierList", key = "'all'")
     public List<CourierDto> getAllCouriers() {
         logger.debug("Fetching all couriers");
 
@@ -49,6 +58,7 @@ public class CourierService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "courierList", key = "'page:' + #limit + ':' + #offset")
     public List<CourierDto> getCouriersWithPagination(int limit, int offset) {
         logger.debug("Fetching couriers with limit={} and offset={}", limit, offset);
 
@@ -60,6 +70,7 @@ public class CourierService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "courierDetails", key = "#courierId")
     public Optional<CourierDto> getCourierById(Long courierId) {
         logger.debug("Fetching courier by id={}", courierId);
 

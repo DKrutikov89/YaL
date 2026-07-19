@@ -136,6 +136,20 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(
+            RateLimitExceededException ex,
+            HttpServletRequest request) {
+        logger.warn("Rate limit exceeded: {}", ex.getMessageKey());
+        return buildResponse(
+                ex.getHttpStatus(),
+                resolveMessage(ex.getMessageKey(), ex.getMessageArgs()),
+                request,
+                ex.getErrorCode(),
+                null
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex, HttpServletRequest request) {
         logger.error("Unhandled exception: {}", ex.getMessage(), ex);
