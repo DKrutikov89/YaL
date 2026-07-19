@@ -1,8 +1,15 @@
 package com.yandex.lavka.exception;
 
-public class CourierNotFoundException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class CourierNotFoundException extends BusinessException {
 
     public CourierNotFoundException(Long courierId) {
-        super("Courier not found with id: " + courierId);
+        super(
+                "error.courier.not-found",
+                ErrorCode.COURIER_NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                courierId
+        );
     }
 }

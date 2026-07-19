@@ -14,7 +14,7 @@ import java.lang.annotation.*;
 @Documented
 public @interface ValidWorkingHours {
 
-    String message() default "Working hours must be in format 'HH:MM-HH:MM' and start time must be before end time";
+    String message() default "{validation.working-hours.invalid}";
 
     Class<?>[] groups() default {};
 

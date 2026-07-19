@@ -3,6 +3,7 @@ package com.yandex.lavka.model.dto;
 // DTO (Data Transfer Object) — это объект для передачи данных между слоями приложения.
 // В данном случае — между сервером и клиентом.
 import com.yandex.lavka.model.enums.CourierType;
+import com.yandex.lavka.validation.ValidRegions;
 import com.yandex.lavka.validation.ValidWorkingHours;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -19,22 +20,23 @@ import java.util.List;
 @AllArgsConstructor     // @AllArgsConstructor Создаёт конструктор со всеми полями: new CreateCourierDto(тип, регионы, часы)
 public class CreateCourierDto {
     // @NotNull проверка: поле courierType обязательно должно быть заполнено (нельзя оставить пустым)
-    @NotNull(message = "Courier type is required")
+    @NotNull(message = "{validation.courier.type.required}")
     private CourierType courierType;      // courierType это перечисление (enum) с вариантами
 
     // @NotEmpty — список не должен быть пустым (хотя бы один район)
-    @NotEmpty(message = "Regions list cannot be empty")
+    @NotEmpty(message = "{validation.regions.required}")
+    @ValidRegions
     // @Positive — каждое число в списке должно быть положительным (1, 2, 3... нельзя 0 или -5)
-    private List<@Positive(message = "Region must be positive") Integer> regions;
+    private List<@Positive(message = "{validation.regions.positive}") Integer> regions;
 
     // @NotEmpty — нельзя сдать пустой график
-    @NotEmpty(message = "Working hours list cannot be empty")
+    @NotEmpty(message = "{validation.working-hours.required}")
     @ValidWorkingHours
     private List<@Pattern(
             // @Pattern(regexp=...) — каждое время должно строго соответствовать формату,
             // описанному регулярным выражением
             regexp = "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
-            message = "Working hours must be in format HH:MM-HH:MM"
+            message = "{validation.working-hours.format}"
     ) String> workingHours;
 
     // ^                      - начало строки

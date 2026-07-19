@@ -1,5 +1,6 @@
 package com.yandex.lavka.model.dto;
 
+import com.yandex.lavka.validation.ValidOrderCompletion;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
@@ -8,19 +9,20 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+@ValidOrderCompletion
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class CompleteOrderDto {
 
-    @NotNull(message = "Courier id is required")
-    @Positive(message = "Courier id must be positive")
+    @NotNull(message = "{validation.courier-id.required}")
+    @Positive(message = "{validation.courier-id.positive}")
     private Long courierId;
 
-    @NotNull(message = "Order id is required")
-    @Positive(message = "Order id must be positive")
+    @NotNull(message = "{validation.order-id.required}")
+    @Positive(message = "{validation.order-id.positive}")
     private Long orderId;
 
-    @NotNull(message = "Complete time is required")
+    @NotNull(message = "{validation.complete-time.required}")
     private LocalDateTime completeTime;
 }

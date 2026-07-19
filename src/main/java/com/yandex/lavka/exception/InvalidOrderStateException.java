@@ -1,8 +1,15 @@
 package com.yandex.lavka.exception;
 
-public class InvalidOrderStateException extends RuntimeException {
+import org.springframework.http.HttpStatus;
 
-    public InvalidOrderStateException(Long orderId, String message) {
-        super("Order " + orderId + ": " + message);
+public class InvalidOrderStateException extends BusinessException {
+
+    public InvalidOrderStateException(Long orderId, String reasonKey) {
+        super(
+                reasonKey,
+                ErrorCode.ORDER_ALREADY_COMPLETED,
+                HttpStatus.CONFLICT,
+                orderId
+        );
     }
 }

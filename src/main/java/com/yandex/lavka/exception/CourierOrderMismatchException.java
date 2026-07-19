@@ -1,8 +1,16 @@
 package com.yandex.lavka.exception;
 
-public class CourierOrderMismatchException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class CourierOrderMismatchException extends BusinessException {
 
     public CourierOrderMismatchException(Long courierId, Long orderId) {
-        super("Courier " + courierId + " is not assigned to order " + orderId);
+        super(
+                "error.order.courier-mismatch",
+                ErrorCode.COURIER_ORDER_MISMATCH,
+                HttpStatus.CONFLICT,
+                courierId,
+                orderId
+        );
     }
 }

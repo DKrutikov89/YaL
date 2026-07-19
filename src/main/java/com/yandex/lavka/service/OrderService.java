@@ -97,7 +97,7 @@ public class OrderService {
                     && order.getCompletedTime().equals(completeOrderDto.getCompleteTime())) {
                 return toDto(order);
             }
-            throw new InvalidOrderStateException(order.getId(), "Order is already completed");
+            throw new InvalidOrderStateException(order.getId(), "error.order.already-completed");
         }
 
         order.setCourier(courier);

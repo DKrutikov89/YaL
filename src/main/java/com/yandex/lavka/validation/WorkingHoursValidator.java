@@ -31,9 +31,8 @@ public class WorkingHoursValidator implements ConstraintValidator<ValidWorkingHo
             if (!isValidInterval(interval)) {
                 // Добавляем детальное сообщение об ошибке
                 context.disableDefaultConstraintViolation();
-                context.buildConstraintViolationWithTemplate(
-                        "Invalid interval: '" + interval + "' - start time must be before end time"
-                ).addConstraintViolation();
+                context.buildConstraintViolationWithTemplate("{validation.working-hours.interval}")
+                        .addConstraintViolation();
                 return false;
             }
         }

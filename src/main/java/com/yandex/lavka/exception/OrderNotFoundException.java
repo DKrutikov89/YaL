@@ -1,8 +1,15 @@
 package com.yandex.lavka.exception;
 
-public class OrderNotFoundException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class OrderNotFoundException extends BusinessException {
 
     public OrderNotFoundException(Long orderId) {
-        super("Order not found with id: " + orderId);
+        super(
+                "error.order.not-found",
+                ErrorCode.ORDER_NOT_FOUND,
+                HttpStatus.NOT_FOUND,
+                orderId
+        );
     }
 }

@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -102,7 +103,9 @@ class YandexLavkaApplicationTests {
     void getCouriersRejectsNegativeOffset() throws Exception {
         mockMvc.perform(get("/couriers?limit=5&offset=-1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Validation Failed"));
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.error_code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.correlation_id").isNotEmpty());
     }
 
     @Test
@@ -110,7 +113,9 @@ class YandexLavkaApplicationTests {
         mockMvc.perform(get("/couriers/999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message").value("Courier not found with id: 999"));
+                .andExpect(jsonPath("$.message").value("Courier not found with id: 999"))
+                .andExpect(jsonPath("$.error_code").value("COURIER_NOT_FOUND"))
+                .andExpect(jsonPath("$.path").value("/couriers/999"));
     }
 
     @Test
@@ -209,7 +214,8 @@ class YandexLavkaApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Validation Failed"));
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.error_code").value("VALIDATION_ERROR"));
     }
 
     @Test
@@ -230,7 +236,7 @@ class YandexLavkaApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Validation Failed"));
+                .andExpect(jsonPath("$.error_code").value("VALIDATION_ERROR"));
     }
 
     @Test
@@ -255,7 +261,7 @@ class YandexLavkaApplicationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Validation Failed"));
+                .andExpect(jsonPath("$.error_code").value("VALIDATION_ERROR"));
     }
 
     @Test
@@ -408,8 +414,145 @@ class YandexLavkaApplicationTests {
         mockMvc.perform(post("/orders/complete")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(wrongCourierCompletion))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.error_code").value("COURIER_ORDER_MISMATCH"));
+    }
+
+    @Test
+    void createCourierWithDuplicateRegionsShouldFailValidation() throws Exception {
+        String requestBody = """
+                {
+                  "couriers": [
+                    {
+                      "courier_type": "FOOT",
+                      "regions": [1, 1],
+                      "working_hours": ["09:00-18:00"]
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/couriers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Bad Request"));
+                .andExpect(jsonPath("$.error_code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void createOrderWithInvalidWeightShouldFailValidation() throws Exception {
+        String requestBody = """
+                {
+                  "orders": [
+                    {
+                      "weight": 70.0,
+                      "region": 1,
+                      "delivery_hours": ["09:00-18:00"],
+                      "cost": 230
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error_code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void completeOrderWithFutureTimeShouldFailValidation() throws Exception {
+        String requestBody = """
+                {
+                  "complete_info": [
+                    {
+                      "courier_id": 1,
+                      "order_id": 1,
+                      "complete_time": "2099-01-20T10:33:01"
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/orders/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error_code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void getCourierByIdReturnsLocalizedMessageForRussianLocale() throws Exception {
+        mockMvc.perform(get("/couriers/999")
+                        .header("Accept-Language", "ru"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Курьер с id 999 не найден"))
+                .andExpect(header().exists("X-Correlation-Id"));
+    }
+
+    @Test
+    void createCourierWithInvalidEnumReturnsStructuredJsonError() throws Exception {
+        String requestBody = """
+                {
+                  "couriers": [
+                    {
+                      "courier_type": "HELICOPTER",
+                      "regions": [1],
+                      "working_hours": ["09:00-18:00"]
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/couriers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error_code").value("INVALID_JSON"))
+                .andExpect(jsonPath("$.correlation_id").isNotEmpty());
+    }
+
+    @Test
+    void repeatedOrderCompletionWithDifferentTimeReturnsConflict() throws Exception {
+        Long courierId = createCourierAndReturnId("AUTO", new int[]{1}, "09:00-18:00");
+        Long orderId = createOrder(1.0, 1, 500, "09:00-18:00");
+
+        String firstCompletion = """
+                {
+                  "complete_info": [
+                    {
+                      "courier_id": %d,
+                      "order_id": %d,
+                      "complete_time": "2023-01-20T10:33:01"
+                    }
+                  ]
+                }
+                """.formatted(courierId, orderId);
+
+        String secondCompletion = """
+                {
+                  "complete_info": [
+                    {
+                      "courier_id": %d,
+                      "order_id": %d,
+                      "complete_time": "2023-01-20T10:35:01"
+                    }
+                  ]
+                }
+                """.formatted(courierId, orderId);
+
+        mockMvc.perform(post("/orders/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(firstCompletion))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/orders/complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secondCompletion))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error_code").value("ORDER_ALREADY_COMPLETED"));
     }
 
     private void createCourier(String courierType, int region, String workingHours) throws Exception {
